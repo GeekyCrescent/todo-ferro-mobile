@@ -1,50 +1,130 @@
-# Welcome to your Expo app 👋
+# Todo App — Aplicación móvil
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación móvil de gestión de tareas organizadas por **listas**, construida con
+Expo (React Native). Permite crear listas, agregar tareas con prioridad, fecha
+límite y categorías, buscarlas y consultarlas desde cualquier dispositivo gracias
+a un backend desplegado en la nube.
 
-## Get started
+## Descripción
 
-1. Install dependencies
+- **Listas de tareas**: organiza tus pendientes en listas con color (Escuela,
+  Casa, Trabajo…).
+- **Tareas**: cada tarea tiene título, descripción, prioridad (alta/media/baja),
+  fecha límite y categorías. CRUD completo (crear, editar, completar, borrar).
+- **Autenticación** con Firebase Authentication (email/contraseña) y sesión
+  persistente.
+- **Búsqueda** por listas y tareas.
+- **Perfil** con datos del usuario, estadísticas y cierre de sesión.
 
-   ```bash
-   npm install
-   ```
+## Tecnologías
 
-2. Start the app
+**Móvil**
+- [Expo](https://expo.dev) / React Native (Expo Router para navegación)
+- TypeScript
+- NativeWind + gluestack-ui (estilos)
+- Axios (instancia personalizada + interceptors)
+- Firebase Authentication (login + persistencia con AsyncStorage)
+- react-native-svg (anillos de progreso)
 
-   ```bash
-   npx expo start
-   ```
+**Backend** (repo aparte, `todo-backend`)
+- Quarkus (Java 21), Hibernate ORM + Panache
+- MySQL (Google Cloud SQL)
+- Firebase Admin SDK (verificación de JWT)
+- Desplegado en **Google Cloud Run**
 
-In the output, you'll find options to open the app in a
+## Arquitectura
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+app/                # Pantallas (Expo Router)
+  login.tsx         # Login
+  (tabs)/
+    index.tsx       # Home: listas
+    explore.tsx     # Búsqueda
+    profile.tsx     # Perfil / About / Logout
+  list/[id].tsx     # Detalle de lista (sus tareas)
+  modal.tsx         # Crear / editar tarea
+  list-modal.tsx    # Crear / editar lista
+components/glass/    # Componentes reutilizables (cards, chips, botones, formularios)
+hooks/               # useTodos, useLists
+lib/                 # api (axios), auth, firebase, endpoints, helpers
+theme/               # Tokens de diseño
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Requisitos previos
 
-## Learn more
+- Node.js 18+
+- [pnpm](https://pnpm.io) (o npm)
+- App **Expo Go** en tu teléfono, o un emulador Android/iOS
 
-To learn more about developing your project with Expo, look at the following resources:
+## Instalación
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+git clone <url-del-repo>
+cd todo-mobile
+pnpm install   # o: npm install
+```
 
-## Join the community
+## Variables de entorno
 
-Join our community of developers creating universal apps.
+Crea un archivo `.env` en la raíz de `todo-mobile`:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+# URL del backend (Cloud Run)
+EXPO_PUBLIC_API_URL=https://todo-backend-7sluyuniza-uc.a.run.app
+
+# Configuración de Firebase (proyecto medsync-1)
+EXPO_PUBLIC_FIREBASE_API_KEY=tu_api_key
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=medsync-1.firebaseapp.com
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=medsync-1
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=medsync-1.firebasestorage.app
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=tu_sender_id
+EXPO_PUBLIC_FIREBASE_APP_ID=tu_app_id
+```
+
+> Las variables `EXPO_PUBLIC_*` se incluyen en el bundle al compilar. Si cambias
+> el `.env`, reinicia con `npx expo start --clear`.
+
+## Cómo ejecutar
+
+```bash
+npx expo start --clear
+```
+
+Luego:
+- **Teléfono**: escanea el QR con Expo Go.
+- **Web**: presiona `w`.
+- **Android/iOS emulador**: presiona `a` / `i`.
+
+El backend ya está desplegado y público, así que no necesitas correr nada local
+para usar la app.
+
+## Links deployados
+
+- **Backend (API)**: https://todo-backend-7sluyuniza-uc.a.run.app
+  - Health rápido: `GET /list` → `401` (vivo, requiere token)
+- **App móvil**: se ejecuta vía Expo Go (no requiere build público).
+
+## Usuarios de prueba
+
+| Email | Contraseña |
+|-------|------------|
+| `ferro.prod@gmail.com` | `Test1234!` |
+
+También puedes registrar un usuario nuevo: en la pantalla de login, entra a
+**"Probar API"** → botón **"Register"** con un correo nuevo (lo crea en Firebase
+y en la base de datos).
+
+## Endpoints principales del backend
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/user` | Registrar usuario (público) |
+| GET | `/list` | Mis listas (con conteo de tareas) |
+| POST/PUT/DELETE | `/list`, `/list/{id}` | CRUD de listas |
+| GET | `/list/{id}/todos` | Tareas de una lista |
+| GET | `/todo/my-todos` | Todas mis tareas |
+| POST/PUT/DELETE | `/todo`, `/todo/{id}` | CRUD de tareas |
+| PATCH | `/todo/{id}/toggle` | Completar/descompletar |
+| GET/POST | `/category` | Categorías |
+
+Todas (salvo `POST /user`) requieren `Authorization: Bearer <idToken de Firebase>`.

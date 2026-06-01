@@ -1,112 +1,227 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+import AuroraBackground from "@/components/glass/AuroraBackground";
+import CategoryChip from "@/components/glass/CategoryChip";
+import GlassCard from "@/components/glass/GlassCard";
+import { Text } from "@/components/ui/text";
+import { getLists, getMyTodos, type TaskList, type Todo } from "@/lib/endpoints";
+import { formatDueDate } from "@/lib/format";
+import { palette, PRIORITY_META } from "@/theme/tokens";
 
-export default function TabTwoScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
+export default function SearchScreen() {
+  const [query, setQuery] = useState("");
+  const [lists, setLists] = useState<TaskList[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    try {
+      const [l, t] = await Promise.all([getLists(), getMyTodos()]);
+      setLists(l);
+      setTodos(t);
+    } catch {
+      // silencioso; búsqueda no es crítica
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  const q = query.trim().toLowerCase();
+  const matchedLists = useMemo(
+    () =>
+      q.length === 0
+        ? []
+        : lists.filter((l) => l.name.toLowerCase().includes(q) || (l.description ?? "").toLowerCase().includes(q)),
+    [lists, q]
+  );
+  const matchedTodos = useMemo(
+    () =>
+      q.length === 0
+        ? []
+        : todos.filter(
+            (t) => t.title.toLowerCase().includes(q) || (t.description ?? "").toLowerCase().includes(q)
           ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    [todos, q]
+  );
+
+  const listName = (id?: string | null) => lists.find((l) => l.uuid === id)?.name;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <AuroraBackground>
+        <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+          <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+            <Text style={{ fontSize: 30, fontWeight: "800", color: palette.text }}>
+              Buscar
+            </Text>
+            <GlassCard style={{ marginTop: 14, paddingHorizontal: 14, paddingVertical: 2 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ionicons name="search" size={18} color={palette.textFaint} />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  autoFocus
+                  placeholder="Buscar listas y tareas…"
+                  placeholderTextColor={palette.textFaint}
+                  style={{ flex: 1, paddingVertical: 12, fontSize: 15, color: palette.text }}
+                />
+                {query ? (
+                  <Pressable onPress={() => setQuery("")} hitSlop={8}>
+                    <Ionicons name="close-circle" size={18} color={palette.textFaint} />
+                  </Pressable>
+                ) : null}
+              </View>
+            </GlassCard>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 140 }}>
+            {loading ? (
+              <ActivityIndicator size="large" color={palette.accent} style={{ marginTop: 40 }} />
+            ) : q.length === 0 ? (
+              <View style={{ alignItems: "center", marginTop: 60 }}>
+                <Ionicons name="search-outline" size={34} color={palette.textFaint} />
+                <Text style={{ color: palette.textMuted, marginTop: 10 }}>
+                  Escribe para buscar listas y tareas
+                </Text>
+              </View>
+            ) : matchedLists.length === 0 && matchedTodos.length === 0 ? (
+              <GlassCard style={{ padding: 26, alignItems: "center" }}>
+                <Text style={{ color: palette.text, fontWeight: "700" }}>Sin resultados</Text>
+                <Text style={{ color: palette.textMuted, marginTop: 4 }}>
+                  Nada coincide con “{query}”.
+                </Text>
+              </GlassCard>
+            ) : (
+              <>
+                {matchedLists.length > 0 ? (
+                  <>
+                    <SectionTitle>Listas ({matchedLists.length})</SectionTitle>
+                    {matchedLists.map((l) => (
+                      <Pressable
+                        key={l.uuid}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/list/[id]",
+                            params: { id: l.uuid, name: l.name, color: l.color ?? "" },
+                          })
+                        }
+                        style={{ marginBottom: 10 }}
+                      >
+                        <GlassCard style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                          <View
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: 999,
+                              backgroundColor: l.color ?? palette.accent,
+                            }}
+                          />
+                          <Text style={{ flex: 1, fontWeight: "700", color: palette.text }}>
+                            {l.name}
+                          </Text>
+                          <Ionicons name="chevron-forward" size={18} color={palette.textFaint} />
+                        </GlassCard>
+                      </Pressable>
+                    ))}
+                  </>
+                ) : null}
+
+                {matchedTodos.length > 0 ? (
+                  <>
+                    <SectionTitle>Tareas ({matchedTodos.length})</SectionTitle>
+                    {matchedTodos.map((t) => (
+                      <Pressable
+                        key={t.uuid}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/modal",
+                            params: {
+                              id: t.uuid,
+                              title: t.title,
+                              description: t.description ?? "",
+                              priority: t.priority ?? "MEDIUM",
+                              dueDate: t.dueDate ?? "",
+                              listId: t.listId ?? "",
+                              categoryIds: JSON.stringify((t.categories ?? []).map((c) => c.uuid)),
+                            },
+                          })
+                        }
+                        style={{ marginBottom: 10 }}
+                      >
+                        <GlassCard style={{ padding: 14 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                            {t.priority ? (
+                              <Ionicons
+                                name={PRIORITY_META[t.priority].icon}
+                                size={13}
+                                color={PRIORITY_META[t.priority].color}
+                              />
+                            ) : null}
+                            <Text
+                              style={{
+                                flex: 1,
+                                fontWeight: "600",
+                                color: t.completed ? palette.textFaint : palette.text,
+                                textDecorationLine: t.completed ? "line-through" : "none",
+                              }}
+                            >
+                              {t.title}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                            {listName(t.listId) ? (
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                                <Ionicons name="folder-outline" size={12} color={palette.textMuted} />
+                                <Text style={{ fontSize: 12, color: palette.textMuted }}>
+                                  {listName(t.listId)}
+                                </Text>
+                              </View>
+                            ) : null}
+                            {t.dueDate ? (
+                              <Text style={{ fontSize: 12, color: palette.textMuted }}>
+                                {formatDueDate(t.dueDate)}
+                              </Text>
+                            ) : null}
+                            {(t.categories ?? []).map((c) => (
+                              <CategoryChip key={c.uuid} category={c} small />
+                            ))}
+                          </View>
+                        </GlassCard>
+                      </Pressable>
+                    ))}
+                  </>
+                ) : null}
+              </>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </AuroraBackground>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-});
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <Text
+      style={{
+        fontSize: 14,
+        fontWeight: "800",
+        color: palette.textMuted,
+        marginBottom: 10,
+        marginTop: 6,
+      }}
+    >
+      {children}
+    </Text>
+  );
+}
